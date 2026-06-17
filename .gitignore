@@ -24,6 +24,10 @@
 .DS_Store
 *.pem
 
+# uploaded slide images (runtime, not in git)
+/public/uploads/*
+!/public/uploads/.gitkeep
+
 # debug
 npm-debug.log*
 yarn-debug.log*

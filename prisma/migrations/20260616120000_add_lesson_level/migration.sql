@@ -1,0 +1,2 @@
+-- AddColumn: level to Lesson
+ALTER TABLE `Lesson` ADD COLUMN `level` INTEGER NOT NULL DEFAULT 1;

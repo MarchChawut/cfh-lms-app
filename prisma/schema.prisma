@@ -1,0 +1,173 @@
+datasource db {
+  provider = "mysql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Course {
+  id           Int          @id @default(autoincrement())
+  slug         String       @unique
+  title        String
+  description  String       @db.Text
+  thumbnailUrl String
+  duration     String
+  difficulty   Difficulty   @default(BEGINNER)
+  category     String
+  order        Int          @default(0)
+  isPublished  Boolean      @default(true)
+  defaultStartTime String?  // เวลาเรียนประจำคอร์ส HH:MM
+  defaultEndTime   String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  lessons      Lesson[]
+  enrollments  Enrollment[]
+  sessions     ClassSession[]
+}
+
+enum Difficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+model User {
+  id          Int          @id @default(autoincrement())
+  email       String       @unique
+  name        String
+  password    String
+  role        Role         @default(STUDENT)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  enrollments Enrollment[]
+  progress    Progress[]
+  payments    Payment[]
+  attendances Attendance[]
+}
+
+enum Role {
+  STUDENT
+  ADMIN
+}
+
+model Lesson {
+  id          Int          @id @default(autoincrement())
+  courseId    Int
+  course      Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  description String       @db.Text
+  order       Int          @default(0)
+  level       Int          @default(1)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  items       LessonItem[]
+  progress    Progress[]
+
+  @@index([courseId])
+}
+
+model LessonItem {
+  id       Int      @id @default(autoincrement())
+  lessonId Int
+  lesson   Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  type     ItemType
+  order    Int      @default(0)
+
+  // SLIDE fields
+  imageUrl String? @db.Text
+  caption  String?
+
+  // LAB fields
+  title    String?
+  goal     String?
+  steps    Json?
+  files    Json?
+  openFile String?
+
+  @@index([lessonId])
+}
+
+enum ItemType {
+  SLIDE
+  LAB
+}
+
+model Enrollment {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  courseId  Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, courseId])
+  @@index([courseId])
+}
+
+model Progress {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  lessonId  Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  lastItem  Int      @default(0)
+  completed Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+}
+
+model Payment {
+  id        Int           @id @default(autoincrement())
+  userId    Int
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  period    String
+  amount    Decimal       @db.Decimal(10, 2)
+  status    PaymentStatus @default(UNPAID)
+  paidAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  @@unique([userId, period])
+  @@index([userId])
+}
+
+enum PaymentStatus {
+  PAID
+  UNPAID
+}
+
+model ClassSession {
+  id          Int          @id @default(autoincrement())
+  courseId    Int
+  course      Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  date        DateTime     @db.Date // วันที่เรียน (เสาร์ปกติ หรือ อาทิตย์ชดเชย)
+  type        SessionType  @default(REGULAR) // REGULAR=เสาร์, MAKEUP=ชดเชย
+  startTime   String?      // HH:MM, null = ใช้เวลา default ของคอร์ส
+  endTime     String?
+  topic       String?
+  createdAt   DateTime     @default(now())
+  attendances Attendance[]
+
+  // หลายคาบในวันเดียวกันได้ (คนละเวลา) — สอนเดี่ยว/ชดเชย คนละเนื้อหา จึงไม่บังคับ unique ที่ (courseId, date)
+  @@index([courseId])
+  @@index([date])
+}
+
+enum SessionType {
+  REGULAR
+  MAKEUP
+}
+
+model Attendance {
+  id        Int          @id @default(autoincrement())
+  sessionId Int
+  userId    Int
+  session   ClassSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+
+  @@unique([sessionId, userId])
+  @@index([userId])
+}
